@@ -128,14 +128,10 @@ jobs:
 
       - name: Apply Kubernetes configurations
         run: |
-          # Aplicar namespace
           if [ -f tech/k8s/namespace.yaml ]; then
             kubectl apply -f tech/k8s/namespace.yaml
           fi
           
-      
-
-          # Aplicar deployments e serviços para PostgreSQL
           if [ -f tech/k8s/postgres-deployment.yaml ]; then
             kubectl apply -f tech/k8s/postgres-deployment.yaml
           fi
@@ -144,25 +140,33 @@ jobs:
             kubectl apply -f tech/k8s/postgres-service.yaml
           fi
           
-          # Aplicar deployments e serviços para RabbitMQ
           if [ -f tech/k8s/rabbit-deployment.yaml ]; then
             kubectl apply -f tech/k8s/rabbit-deployment.yaml
           fi
           
-          # Aplicar job
           if [ -f tech/k8s/job.yaml ]; then
+            JOB_NAME=$(grep -o 'name: [a-zA-Z0-9-]*' tech/k8s/job.yaml | head -1 | awk '{print $2}')
+            NAMESPACE=$(grep -o 'namespace: [a-zA-Z0-9-]*' tech/k8s/namespace.yaml | head -1 | awk '{print $2}')
+            
+            if [ -z "$NAMESPACE" ]; then
+              NAMESPACE="payments"
+            fi
+            
+            if [ -n "$JOB_NAME" ]; then
+              kubectl delete job $JOB_NAME -n $NAMESPACE --ignore-not-found=true
+            else
+              kubectl delete job payments-db-migration -n $NAMESPACE --ignore-not-found=true
+            fi
+            
             kubectl apply -f tech/k8s/job.yaml
           fi
           
-          # Aplicar worker
           if [ -f tech/k8s/deployment_worker.yaml ]; then
             kubectl apply -f tech/k8s/deployment_worker.yaml
           fi
           
-          # Aplicar deployment principal
           kubectl set image deployment/payments-api payments-api=131793876715.dkr.ecr.us-east-1.amazonaws.com/microservices/payments:latest -n payments || kubectl apply -f tech/k8s/deployment.yaml
           
-          # Aplicar serviços
           if [ -f tech/k8s/service.yaml ]; then
             kubectl apply -f tech/k8s/service.yaml
           fi
