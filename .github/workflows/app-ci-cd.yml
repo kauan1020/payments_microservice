@@ -41,10 +41,6 @@ jobs:
         working-directory: ./tech
         run: |
           poetry run pytest tests --cov=tech --cov-report=xml:coverage.xml --cov-report=term
-          echo "Coverage XML file details:"
-          ls -la coverage.xml
-          echo "First 20 lines of coverage.xml:"
-          head -20 coverage.xml
 
       - name: Run BDD tests with Behave
         working-directory: ./tech
@@ -55,11 +51,6 @@ jobs:
         run: |
           if [ -f tech/coverage.xml ]; then
             cp tech/coverage.xml ./coverage.xml
-            echo "Coverage file copied to root directory"
-            ls -la ./coverage.xml
-          else
-            echo "Warning: coverage.xml not found in tech directory"
-            find tech -name "coverage.xml"
           fi
 
       - name: SonarQube Scan
@@ -73,9 +64,8 @@ jobs:
             -Dsonar.projectName="Payments Microservice"
             -Dsonar.sources=tech
             -Dsonar.python.coverage.reportPaths=coverage.xml
-            -Dsonar.exclusions=**/__pycache__/**,**/tests/**,**/*.html,**/htmlcov/**,**/.scannerwork/**,**/migrations/**,**/*.md,**/*.txt,**/*.yml,**/*.yaml
-            -Dsonar.coverage.exclusions=**/tests/**/*,**/test_*.py,**/__init__.py,**/migrations/**,**/config/**,**/settings/**,**/wsgi.py,**/asgi.py,**/manage.py
-            -Dsonar.verbose=true
+            -Dsonar.exclusions=**/__pycache__/**,**/tests/**,**/*.html,**/htmlcov/**,**/.scannerwork/**
+            -Dsonar.coverage.exclusions=**/tests/**/*,**/test_*.py,**/__init__.py,tech/tech/workers/run_payment_request_worker.py
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
@@ -138,10 +128,12 @@ jobs:
 
       - name: Apply Kubernetes configurations
         run: |
+          # Aplicar namespace
           if [ -f tech/k8s/namespace.yaml ]; then
             kubectl apply -f tech/k8s/namespace.yaml
           fi
           
+          # Aplicar deployments e serviços para PostgreSQL
           if [ -f tech/k8s/postgres-deployment.yaml ]; then
             kubectl apply -f tech/k8s/postgres-deployment.yaml
           fi
@@ -150,46 +142,38 @@ jobs:
             kubectl apply -f tech/k8s/postgres-service.yaml
           fi
           
+          # Aplicar deployments e serviços para RabbitMQ
           if [ -f tech/k8s/rabbit-deployment.yaml ]; then
             kubectl apply -f tech/k8s/rabbit-deployment.yaml
           fi
           
+          # Aplicar job
           if [ -f tech/k8s/job.yaml ]; then
-            echo "Processing database migration job"
-            # Extract job name or use default
             JOB_NAME=$(grep -o 'name: [a-zA-Z0-9-]*' tech/k8s/job.yaml | head -1 | awk '{print $2}')
-            if [ -z "$JOB_NAME" ]; then
-              JOB_NAME="payments-db-migration"
-              echo "Job name not found, using default: $JOB_NAME"
-            else
-              echo "Found job name: $JOB_NAME"
-            fi
-            
-            # Extract namespace or use default
             NAMESPACE=$(grep -o 'namespace: [a-zA-Z0-9-]*' tech/k8s/namespace.yaml | head -1 | awk '{print $2}')
+            
             if [ -z "$NAMESPACE" ]; then
               NAMESPACE="payments"
-              echo "Namespace not found, using default: $NAMESPACE"
-            else
-              echo "Found namespace: $NAMESPACE"
             fi
             
-            # Delete existing job if it exists
-            echo "Deleting job $JOB_NAME in namespace $NAMESPACE if it exists"
-            kubectl delete job $JOB_NAME -n $NAMESPACE --ignore-not-found=true
+            if [ -n "$JOB_NAME" ]; then
+              kubectl delete job $JOB_NAME -n $NAMESPACE --ignore-not-found=true
+            else
+              kubectl delete job payments-db-migration -n $NAMESPACE --ignore-not-found=true
+            fi
             
-            # Apply the job
-            echo "Applying job from tech/k8s/job.yaml"
             kubectl apply -f tech/k8s/job.yaml
           fi
           
+          # Aplicar worker
           if [ -f tech/k8s/deployment_worker.yaml ]; then
             kubectl apply -f tech/k8s/deployment_worker.yaml
           fi
           
-          echo "Updating deployment/payments-api or creating if it doesn't exist"
+          # Aplicar deployment principal
           kubectl set image deployment/payments-api payments-api=131793876715.dkr.ecr.us-east-1.amazonaws.com/microservices/payments:latest -n payments || kubectl apply -f tech/k8s/deployment.yaml
           
+          # Aplicar serviços
           if [ -f tech/k8s/service.yaml ]; then
             kubectl apply -f tech/k8s/service.yaml
           fi
