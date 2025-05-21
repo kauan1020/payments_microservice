@@ -29,18 +29,21 @@ class PaymentController:
         self.get_payment_status_use_case = get_payment_status_use_case
         self.webhook_handler_use_case = webhook_handler_use_case
 
-    def create_payment(self, payment_data: PaymentCreate) -> dict:
+    async def create_payment(self, payment_data: PaymentCreate) -> dict:
         """
-        Creates a new payment and returns a formatted response.
+        Creates a new payment.
 
         Args:
-            payment_data (PaymentCreate): The data required to create a new payment.
+            payment_data: The payment data containing the order ID.
 
         Returns:
-            dict: The formatted response containing payment details.
+            A formatted response containing the payment status.
         """
-        payment = self.create_payment_use_case.execute(payment_data)
-        return PaymentPresenter.present_payment_status(payment.order_id, payment.status.value)
+        try:
+            payment = await self.create_payment_use_case.execute(payment_data)
+            return PaymentPresenter.present_payment_status(payment.order_id, payment.status.value)
+        except ValueError as e:
+            raise ValueError(str(e))
 
     def get_payment_status(self, order_id: int) -> dict:
         """

@@ -1,12 +1,12 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: tech-app-service
-  namespace: tech-namespace
+  name: payments-api
+  namespace: payments
 spec:
-  selector:
-    app: tech-app
   ports:
-  - port: 80
-    targetPort: 8000
-  type: LoadBalancer
+  - port: 8004
+    targetPort: 8004
+  selector:
+    app: payments-api
+  type: ClusterIP

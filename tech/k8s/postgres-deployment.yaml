@@ -1,35 +1,69 @@
-#apiVersion: apps/v1
-#kind: Deployment
-#metadata:
-#  name: postgres
-#  labels:
-#    app: postgres
-#  namespace: tech-namespace
-#spec:
-#  replicas: 1
-#  selector:
-#    matchLabels:
-#      app: postgres
-#  template:
-#    metadata:
-#      labels:
-#        app: postgres
-#    spec:
-#      containers:
-#      - name: postgres
-#        image: postgres:latest
-#        ports:
-#        - containerPort: 5432
-#        env:
-#        - name: POSTGRES_USER
-#          value: admin
-#        - name: POSTGRES_PASSWORD
-#          value: admin
-#        - name: POSTGRES_DB
-#          value: admin
-#        volumeMounts:
-#        - name: postgres-data
-#          mountPath: /var/lib/postgresql/data
-#      volumes:
-#      - name: postgres-data
-#        emptyDir: {}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payments-postgres
+  namespace: payments
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: payments-postgres
+  template:
+    metadata:
+      labels:
+        app: payments-postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:13
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: payments-secret
+              key: postgres-user
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: payments-secret
+              key: postgres-password
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef:
+              name: payments-secret
+              key: postgres-db
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        volumeMounts:
+        - name: postgres-data
+          mountPath: /var/lib/postgresql/data
+          subPath: pgdata
+        - name: init-script
+          mountPath: /docker-entrypoint-initdb.d
+        readinessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - pg_isready -U postgres && psql -U postgres -c "SELECT 1 FROM pg_database WHERE datname = 'payments'"
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 5
+          failureThreshold: 5
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "300m"
+      volumes:
+      - name: postgres-data
+        hostPath:
+          path: /mnt/data/postgres-payments
+          type: DirectoryOrCreate
+      - name: init-script
+        configMap:
+          name: payments-db-init
