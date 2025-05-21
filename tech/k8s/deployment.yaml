@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: payments-api
-        image: http://131793876715.dkr.ecr.us-east-1.amazonaws.com/microservices/payments:latest
+        image: 131793876715.dkr.ecr.us-east-1.amazonaws.com/microservices/payments:latest
         ports:
         - containerPort: 8004
         env:

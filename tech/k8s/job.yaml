@@ -8,7 +8,7 @@ spec:
     spec:
       containers:
       - name: migration
-        image: http://131793876715.dkr.ecr.us-east-1.amazonaws.com/microservices/payments:latest
+        image: 131793876715.dkr.ecr.us-east-1.amazonaws.com/microservices/payments:latest
         env:
         - name: DATABASE_URL
           valueFrom:
