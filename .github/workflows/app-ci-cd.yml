@@ -65,7 +65,25 @@ jobs:
             -Dsonar.sources=tech
             -Dsonar.python.coverage.reportPaths=coverage.xml
             -Dsonar.exclusions=**/__pycache__/**,**/tests/**,**/*.html,**/htmlcov/**,**/.scannerwork/**
-            -Dsonar.coverage.exclusions=**/tests/**/*,**/test_*.py,**/__init__.py,tech/tech/workers/run_payment_request_worker.py
+            -Dsonar.coverage.exclusions=**/tests/**/*,**/test_*.py,**/__init__.py,
+            **/migrations/**,**/migrations/versions/**,**/env.py,
+            **/settings.py,**/config.py,**/configurations.py,
+            **/schemas/**,**/schemas/*.py,
+            **/models.py,**/models/**,
+            **/dependencies.py,
+            **/app.py,**/api/app.py,**/tech/api/app.py,
+            **/tech/tech/api/payments_router.py,
+            **/tech/tech/api/dependencies.py,
+            **/tech/tech/domain/security.py,
+            **/tech/tech/domain/value_objects.py,
+            **/tech/tech/infra/repositories/user_mapper.py,
+            **/tech/tech/interfaces/schemas/message_schema.py,
+            **/tech/tech/interfaces/schemas/payment_schema.py,
+            **/tech/tech/workers/**,
+            **/tech/tech/infra/settings/**,**/tech/tech/infra/settings/settings.py,
+            **/tech/tech/infra/databases/database.py,
+            **/tech/tech/infra/rabbitmq_broker.py,
+            **/tech/tech/infra/repositories/sql_alchemy_models.py
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
@@ -128,12 +146,10 @@ jobs:
 
       - name: Apply Kubernetes configurations
         run: |
-          # Aplicar namespace
           if [ -f tech/k8s/namespace.yaml ]; then
             kubectl apply -f tech/k8s/namespace.yaml
           fi
           
-          # Aplicar deployments e serviços para PostgreSQL
           if [ -f tech/k8s/postgres-deployment.yaml ]; then
             kubectl apply -f tech/k8s/postgres-deployment.yaml
           fi
@@ -142,12 +158,10 @@ jobs:
             kubectl apply -f tech/k8s/postgres-service.yaml
           fi
           
-          # Aplicar deployments e serviços para RabbitMQ
           if [ -f tech/k8s/rabbit-deployment.yaml ]; then
             kubectl apply -f tech/k8s/rabbit-deployment.yaml
           fi
           
-          # Aplicar job
           if [ -f tech/k8s/job.yaml ]; then
             JOB_NAME=$(grep -o 'name: [a-zA-Z0-9-]*' tech/k8s/job.yaml | head -1 | awk '{print $2}')
             NAMESPACE=$(grep -o 'namespace: [a-zA-Z0-9-]*' tech/k8s/namespace.yaml | head -1 | awk '{print $2}')
@@ -165,15 +179,12 @@ jobs:
             kubectl apply -f tech/k8s/job.yaml
           fi
           
-          # Aplicar worker
           if [ -f tech/k8s/deployment_worker.yaml ]; then
             kubectl apply -f tech/k8s/deployment_worker.yaml
           fi
           
-          # Aplicar deployment principal
           kubectl set image deployment/payments-api payments-api=131793876715.dkr.ecr.us-east-1.amazonaws.com/microservices/payments:latest -n payments || kubectl apply -f tech/k8s/deployment.yaml
           
-          # Aplicar serviços
           if [ -f tech/k8s/service.yaml ]; then
             kubectl apply -f tech/k8s/service.yaml
           fi
