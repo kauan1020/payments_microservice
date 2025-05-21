@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: worker
-        image: 131793876715.dkr.ecr.us-east-1.amazonaws.com/microservices/payments:latest  # Substitua pela sua imagem
+        image: 131793876715.dkr.ecr.us-east-1.amazonaws.com/microservices/payments:latest
         env:
         - name: DATABASE_URL
           valueFrom:
