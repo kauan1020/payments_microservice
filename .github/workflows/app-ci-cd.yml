@@ -131,10 +131,10 @@ jobs:
           kubectl apply -f tech/k8s/postgres-deployment.yaml
           kubectl apply -f tech/k8s/postgres-service.yaml
           kubectl apply -f tech/k8s/rabbit-deployment.yaml
-          kubectl apply -f tech/k8s/service-rabbit.yaml
           kubectl apply -f tech/k8s/job.yaml
           kubectl apply -f tech/k8s/deployment_worker.yaml
           kubectl set image deployment/payments-service payments-service=131793876715.dkr.ecr.us-east-1.amazonaws.com/microservices/payments:latest -n payments || kubectl apply -f tech/k8s/deployment.yaml
           kubectl apply -f tech/k8s/service.yaml
           kubectl apply -f tech/k8s/service-payment.yaml
+          kubectl apply -f tech/k8s/service-rabbit.yaml
           kubectl rollout status deployment/payments-service -n payments --timeout=300s
