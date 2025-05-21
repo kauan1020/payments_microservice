@@ -125,7 +125,6 @@ jobs:
         run: |
           kubectl apply -f tech/k8s/namespace.yaml
           kubectl apply -f tech/k8s/configmap.yaml
-          kubectl apply -f tech/k8s/secrets.yaml
           kubectl apply -f tech/k8s/postgres-deployment.yaml
           kubectl apply -f tech/k8s/postgres-service.yaml
           kubectl apply -f tech/k8s/rabbit-deployment.yaml
