@@ -22,8 +22,9 @@ spec:
             secretKeyRef:
               name: payments-secret
               key: database-url
+        # Corrigido o host do RabbitMQ para apontar para o serviço no namespace correto
         - name: RABBITMQ_HOST
-          value: rabbitmq.rabbitmq
+          value: "rabbitmq.payments.svc.cluster.local"
         - name: RABBITMQ_PORT
           value: "5672"
         - name: RABBITMQ_USER

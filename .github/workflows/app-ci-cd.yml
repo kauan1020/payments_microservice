@@ -65,25 +65,7 @@ jobs:
             -Dsonar.sources=tech
             -Dsonar.python.coverage.reportPaths=coverage.xml
             -Dsonar.exclusions=**/__pycache__/**,**/tests/**,**/*.html,**/htmlcov/**,**/.scannerwork/**
-            -Dsonar.coverage.exclusions=**/tests/**/*,**/test_*.py,**/__init__.py,
-            **/migrations/**,**/migrations/versions/**,**/env.py,
-            **/settings.py,**/config.py,**/configurations.py,
-            **/schemas/**,**/schemas/*.py,
-            **/models.py,**/models/**,
-            **/dependencies.py,
-            **/app.py,**/api/app.py,**/tech/api/app.py,
-            **/tech/tech/api/payments_router.py,
-            **/tech/tech/api/dependencies.py,
-            **/tech/tech/domain/security.py,
-            **/tech/tech/domain/value_objects.py,
-            **/tech/tech/infra/repositories/user_mapper.py,
-            **/tech/tech/interfaces/schemas/message_schema.py,
-            **/tech/tech/interfaces/schemas/payment_schema.py,
-            **/tech/tech/workers/**,
-            **/tech/tech/infra/settings/**,**/tech/tech/infra/settings/settings.py,
-            **/tech/tech/infra/databases/database.py,
-            **/tech/tech/infra/rabbitmq_broker.py,
-            **/tech/tech/infra/repositories/sql_alchemy_models.py
+            -Dsonar.coverage.exclusions=**/tests/**/*,**/test_*.py,**/__init__.py,**/migrations/**,**/migrations/versions/**,**/env.py,**/settings.py,**/config.py,**/configurations.py,**/schemas/**,**/schemas/*.py,**/models.py,**/models/**,**/dependencies.py,**/app.py,**/api/app.py,**/tech/api/app.py,**/tech/tech/api/payments_router.py,**/tech/tech/api/dependencies.py,**/tech/tech/domain/security.py,**/tech/tech/domain/value_objects.py,**/tech/tech/infra/repositories/user_mapper.py,**/tech/tech/interfaces/schemas/message_schema.py,**/tech/tech/interfaces/schemas/payment_schema.py,**/tech/tech/workers/**,**/tech/tech/infra/settings/**,**/tech/tech/infra/settings/settings.py,**/tech/tech/infra/databases/database.py,**/tech/tech/infra/rabbitmq_broker.py,**/tech/tech/infra/repositories/sql_alchemy_models.py
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
