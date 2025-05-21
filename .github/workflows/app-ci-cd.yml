@@ -5,10 +5,14 @@ on:
     branches: [ main, master, develop ]
   pull_request:
     branches: [ main, master ]
+  repository_dispatch:
+    types: [trigger-deployment]
 
 jobs:
   test-and-build:
     runs-on: ubuntu-latest
+    # Pula os testes se for acionado por outro serviço
+    if: github.event_name != 'repository_dispatch'
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -97,10 +101,114 @@ jobs:
           build-args: |
             POETRY_VERSION=1.5.1
 
-  deploy:
+  # Deploy após o teste e build bem-sucedidos
+  deploy-normal:
     needs: test-and-build
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && github.event_name != 'repository_dispatch'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: us-east-1
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --name tech-eks-cluster --region us-east-1
+
+      - name: List Kubernetes files
+        run: |
+          echo "Listing available Kubernetes files:"
+          ls -la tech/k8s/
+
+      - name: Apply Kubernetes configurations
+        run: |
+          if [ -f tech/k8s/namespace.yaml ]; then
+            kubectl apply -f tech/k8s/namespace.yaml
+          fi
+          
+          if [ -f tech/k8s/postgres-deployment.yaml ]; then
+            kubectl apply -f tech/k8s/postgres-deployment.yaml
+          fi
+          
+          if [ -f tech/k8s/postgres-service.yaml ]; then
+            kubectl apply -f tech/k8s/postgres-service.yaml
+          fi
+          
+          if [ -f tech/k8s/rabbit-deployment.yaml ]; then
+            kubectl apply -f tech/k8s/rabbit-deployment.yaml
+          fi
+          
+          if [ -f tech/k8s/job.yaml ]; then
+            JOB_NAME=$(grep -o 'name: [a-zA-Z0-9-]*' tech/k8s/job.yaml | head -1 | awk '{print $2}')
+            NAMESPACE=$(grep -o 'namespace: [a-zA-Z0-9-]*' tech/k8s/namespace.yaml | head -1 | awk '{print $2}')
+            
+            if [ -z "$NAMESPACE" ]; then
+              NAMESPACE="payments"
+            fi
+            
+            if [ -n "$JOB_NAME" ]; then
+              kubectl delete job $JOB_NAME -n $NAMESPACE --ignore-not-found=true
+            else
+              kubectl delete job payments-db-migration -n $NAMESPACE --ignore-not-found=true
+            fi
+            
+            kubectl apply -f tech/k8s/job.yaml
+          fi
+          
+          if [ -f tech/k8s/deployment_worker.yaml ]; then
+            kubectl apply -f tech/k8s/deployment_worker.yaml
+          fi
+          
+          kubectl set image deployment/payments-api payments-api=131793876715.dkr.ecr.us-east-1.amazonaws.com/microservices/payments:latest -n payments || kubectl apply -f tech/k8s/deployment.yaml
+          
+          if [ -f tech/k8s/service.yaml ]; then
+            kubectl apply -f tech/k8s/service.yaml
+          fi
+          
+          if [ -f tech/k8s/service-payment.yaml ]; then
+            kubectl apply -f tech/k8s/service-payment.yaml
+          fi
+          
+          if [ -f tech/k8s/service-rabbit.yaml ]; then
+            kubectl apply -f tech/k8s/service-rabbit.yaml
+          fi
+
+      # Aciona os deploys dos outros serviços
+      - name: Trigger other microservices
+        run: |
+          curl -X POST \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: token ${{ secrets.GH_PAT }}" \
+            https://api.github.com/repos/kauan1020/orders_microservice/dispatches \
+            -d '{"event_type":"trigger-deployment","client_payload":{"repository":"payments_microservice"}}'
+            
+          curl -X POST \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: token ${{ secrets.GH_PAT }}" \
+            https://api.github.com/repos/kauan1020/users_microservice/dispatches \
+            -d '{"event_type":"trigger-deployment","client_payload":{"repository":"payments_microservice"}}'
+            
+          curl -X POST \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: token ${{ secrets.GH_PAT }}" \
+            https://api.github.com/repos/kauan1020/product_microservice/dispatches \
+            -d '{"event_type":"trigger-deployment","client_payload":{"repository":"payments_microservice"}}'
+
+  # Deploy quando acionado por outro microsserviço
+  deploy-triggered:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'repository_dispatch'
     steps:
       - name: Checkout code
         uses: actions/checkout@v3

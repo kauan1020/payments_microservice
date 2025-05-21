@@ -24,8 +24,9 @@ spec:
             secretKeyRef:
               name: payments-secret
               key: database-url
+        # Corrigido o host do RabbitMQ para usar o formato de DNS completo
         - name: RABBITMQ_HOST
-          value: rabbitmq.rabbitmq
+          value: rabbitmq.payments.svc.cluster.local
         - name: RABBITMQ_PORT
           value: "5672"
         - name: RABBITMQ_USER
@@ -38,6 +39,9 @@ spec:
             secretKeyRef:
               name: payments-secret
               key: rabbitmq-password
+        # Adicionada a URL do serviço de pedidos
+        - name: SERVICE_ORDERS_URL
+          value: "http://orders-service.orders.svc.cluster.local:8003"
         command: ["uvicorn", "tech.api.app:app", "--host", "0.0.0.0", "--port", "8004"]
         resources:
           requests:
