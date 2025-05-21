@@ -1,0 +1,127 @@
+version: "3.8"
+
+services:
+  # Serviço de Mensageria (RabbitMQ)
+  # Observação: você pode remover esse serviço se já tiver um RabbitMQ rodando
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"   # Porta AMQP
+      - "15672:15672" # Porta da Interface de Gerenciamento
+    environment:
+      RABBITMQ_DEFAULT_USER: user
+      RABBITMQ_DEFAULT_PASS: password
+      RABBITMQ_PLUGINS: "rabbitmq_management rabbitmq_tracing rabbitmq_shovel rabbitmq_shovel_management"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - payments-network
+      - microservices-network  # Rede compartilhada entre serviços
+
+  # Banco de dados para serviço de pagamentos
+  postgres:
+    image: postgres:latest
+    container_name: payments_postgres
+    ports:
+      - "5437:5432"  # Porta 5437 para não conflitar com outros serviços
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: payments
+    volumes:
+      - payments_postgres_data:/var/lib/postgresql/data
+      - ./init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres && psql -U postgres -c \"SELECT 1 FROM pg_database WHERE datname = 'payments'\""]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - payments-network
+
+  # Serviço de migração do banco de dados de pagamentos
+  migration:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: payments_migration
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@payments_postgres:5432/payments
+
+    command: alembic upgrade head
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - payments-network
+
+  # API do serviço de pagamentos
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: payments_api
+    ports:
+      - "8004:8004"  # Porta 8004 para o serviço de pagamentos
+    volumes:
+      - ./:/app
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@payments_postgres:5432/payments
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: user
+      RABBITMQ_PASS: password
+    command: uvicorn tech.api.app:app --host 0.0.0.0 --port 8004 --reload
+    depends_on:
+      migration:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - payments-network
+      - microservices-network  # Rede compartilhada entre serviços
+    extra_hosts:
+      - "host.docker.internal:host-gateway"  # Para acessar serviços na máquina host
+
+  # Worker para processar requisições de pagamento
+  request_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: payments_request_worker
+    volumes:
+      - ./:/app
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@payments_postgres:5432/payments
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: user
+      RABBITMQ_PASS: password
+    command: python -m tech.workers.run_payment_request_worker
+    depends_on:
+      migration:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - payments-network
+      - microservices-network  # Rede compartilhada entre serviços
+
+volumes:
+  rabbitmq_data:
+    name: rabbitmq_data_volume
+  payments_postgres_data:
+    name: payments_postgres_data_volume
+
+networks:
+  payments-network:
+    # Rede interna do serviço de pagamentos
+  microservices-network:
+    name: microservices-network
+    external: true  # Essa rede deve ser criada antes com 'docker network create microservices-network'

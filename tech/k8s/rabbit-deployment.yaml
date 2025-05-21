@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rabbitmq
+  namespace: rabbitmq
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rabbitmq
+  template:
+    metadata:
+      labels:
+        app: rabbitmq
+    spec:
+      containers:
+      - name: rabbitmq
+        image: rabbitmq:3.12-management
+        ports:
+        - containerPort: 5672
+          name: amqp
+        - containerPort: 15672
+          name: management
+        env:
+        - name: RABBITMQ_DEFAULT_USER
+          valueFrom:
+            secretKeyRef:
+              name: payments-secret
+              key: rabbitmq-user
+        - name: RABBITMQ_DEFAULT_PASS
+          valueFrom:
+            secretKeyRef:
+              name: payments-secret
+              key: rabbitmq-password
+        - name: RABBITMQ_PLUGINS
+          value: "rabbitmq_management rabbitmq_tracing rabbitmq_shovel rabbitmq_shovel_management"
+        volumeMounts:
+        - name: rabbitmq-data
+          mountPath: /var/lib/rabbitmq
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          exec:
+            command: ["rabbitmq-diagnostics", "check_port_connectivity"]
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+        readinessProbe:
+          exec:
+            command: ["rabbitmq-diagnostics", "check_port_connectivity"]
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 5
+      volumes:
+      - name: rabbitmq-data
+        hostPath:
+          path: /mnt/data/rabbitmq
+          type: DirectoryOrCreate

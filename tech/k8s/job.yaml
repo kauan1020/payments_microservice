@@ -1,0 +1,26 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: payments-migration
+  namespace: payments
+spec:
+  template:
+    spec:
+      containers:
+      - name: migration
+        image: ${ECR_REPO_URL}/payments-service:latest  # Substitua pela sua imagem
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: payments-secret
+              key: database-url
+        command: ["alembic", "upgrade", "head"]
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+      restartPolicy: OnFailure
