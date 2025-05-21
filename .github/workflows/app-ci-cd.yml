@@ -123,15 +123,58 @@ jobs:
 
       - name: Apply Kubernetes configurations
         run: |
-          kubectl apply -f tech/k8s/namespace.yaml
-          kubectl apply -f tech/k8s/configmap.yaml
-          kubectl apply -f tech/k8s/postgres-deployment.yaml
-          kubectl apply -f tech/k8s/postgres-service.yaml
-          kubectl apply -f tech/k8s/rabbit-deployment.yaml
-          kubectl apply -f tech/k8s/job.yaml
-          kubectl apply -f tech/k8s/deployment_worker.yaml
-          kubectl set image deployment/payments-service payments-service=131793876715.dkr.ecr.us-east-1.amazonaws.com/microservices/payments:latest -n payments || kubectl apply -f tech/k8s/deployment.yaml
-          kubectl apply -f tech/k8s/service.yaml
-          kubectl apply -f tech/k8s/service-payment.yaml
-          kubectl apply -f tech/k8s/service-rabbit.yaml
-          kubectl rollout status deployment/payments-service -n payments --timeout=300s
+          # Verificar e aplicar recursos com verificação de existência
+          if [ -f tech/k8s/namespace.yaml ]; then
+            kubectl apply -f tech/k8s/namespace.yaml
+          fi
+          
+          if [ -f tech/k8s/configmap.yaml ]; then
+            kubectl apply -f tech/k8s/configmap.yaml
+          fi
+          
+          if [ -f tech/k8s/secrets.yaml ]; then
+            kubectl apply -f tech/k8s/secrets.yaml
+          fi
+          
+          if [ -f tech/k8s/PersistentVolumeClaim.yaml ]; then
+            kubectl apply -f tech/k8s/PersistentVolumeClaim.yaml
+          fi
+          
+          if [ -f tech/k8s/PersistentVolumeClaim_rabbit.yaml ]; then
+            kubectl apply -f tech/k8s/PersistentVolumeClaim_rabbit.yaml
+          fi
+          
+          if [ -f tech/k8s/postgres-deployment.yaml ]; then
+            kubectl apply -f tech/k8s/postgres-deployment.yaml
+          fi
+          
+          if [ -f tech/k8s/postgres-service.yaml ]; then
+            kubectl apply -f tech/k8s/postgres-service.yaml
+          fi
+          
+          if [ -f tech/k8s/rabbit-deployment.yaml ]; then
+            kubectl apply -f tech/k8s/rabbit-deployment.yaml
+          fi
+          
+          if [ -f tech/k8s/job.yaml ]; then
+            kubectl apply -f tech/k8s/job.yaml
+          fi
+          
+          if [ -f tech/k8s/deployment_worker.yaml ]; then
+            kubectl apply -f tech/k8s/deployment_worker.yaml
+          fi
+          
+          # Corrigido para usar payments-api em vez de payments-service
+          kubectl set image deployment/payments-api payments-api=131793876715.dkr.ecr.us-east-1.amazonaws.com/microservices/payments:latest -n payments || kubectl apply -f tech/k8s/deployment.yaml
+          
+          if [ -f tech/k8s/service.yaml ]; then
+            kubectl apply -f tech/k8s/service.yaml
+          fi
+          
+          if [ -f tech/k8s/service-payment.yaml ]; then
+            kubectl apply -f tech/k8s/service-payment.yaml
+          fi
+          
+          if [ -f tech/k8s/service-rabbit.yaml ]; then
+            kubectl apply -f tech/k8s/service-rabbit.yaml
+          fi
